@@ -72,10 +72,10 @@
         if (firstHalfRange.length > 0) {
             NSString *resultString1 = [propertyStr substringWithRange:firstHalfRange];
             NSRange range = [resultString1 rangeOfString:@"IBOutlet"];
-//            if(range.location !=NSNotFound)
-//            {
-//                resultString1 = [resultString1 stringByReplacingOccurrencesOfString:@"IBOutlet" withString:@""];
-//            }
+            //            if(range.location !=NSNotFound)
+            //            {
+            //                resultString1 = [resultString1 stringByReplacingOccurrencesOfString:@"IBOutlet" withString:@""];
+            //            }
             //如果是xib 或者 storyboard 不添加到数组
             if(range.location !=NSNotFound) continue;
             
@@ -103,7 +103,7 @@
             proMoel.isNeedSet = NO;
             proMoel.isNeedLazyGet = NO;
             proMoel.fileFrom = file;
-
+            
             [self.propertyArray addObject:proMoel];
         }
     }
@@ -127,7 +127,7 @@
             NSArray * dateType = [self getPropertyTypeAndNameWithProperty:resultString1];
             
             if (!keyword.count || !dateType.count)  continue;
-
+            
             if ([[keyword lastObject] isEqualToString:@"readonly"])
             {
                 proMoel.isOnlyRead = YES;
@@ -222,8 +222,8 @@
  */
 - (NSArray *) weakArray
 {
-  return @[@"assign",
-           @"weak"];
+    return @[@"assign",
+             @"weak"];
 }
 //set
 - (NSString *) productSetMethodWithPropertyModel:(PropertyModel *) model
@@ -238,7 +238,7 @@
     
     NSString * capitalName =  [[[model.name substringToIndex:1] uppercaseString] stringByAppendingString:[model.name substringFromIndex:1]];
     
-    NSString * setMethodStr = [NSString stringWithFormat:@"\n- (void)set%@:(%@ *) %@ {\n    if (_%@ != %@) {\n        _%@ = %@;\n    }\n}",
+    NSString * setMethodStr = [NSString stringWithFormat:@"\n- (void)set%@:(%@ *)%@ {\n    if (_%@ != %@) {\n        _%@ = %@;\n    }\n}\n",
                                capitalName,
                                model.dataType,
                                model.name,
@@ -249,36 +249,39 @@
     if ([specArray containsObject:model.dataType])
     {
         
-        NSString * name = [model.dataType substringFromIndex:2];
+//        NSString * name = [model.dataType substringFromIndex:2];
         //CGSizeEqualToSize
-        NSString * methodName = [NSString stringWithFormat:@"%@EqualTo%@",model.dataType,name];
-        setMethodStr = [NSString stringWithFormat:@"\n- (void)set%@:(%@ ) %@ {\n    if (!%@(_%@,%@)) {\n        _%@ = %@;\n    }\n}",
+//        NSString * methodName = [NSString stringWithFormat:@"%@EqualTo%@",model.dataType,name];
+        setMethodStr = [NSString stringWithFormat:@"\n- (void)set%@:(%@ )%@ {\n    _%@ = %@;\n}\n",
                         capitalName,
                         model.dataType,
-                        model.name,
-                        methodName,
-                        model.name,
                         model.name,
                         model.name,
                         model.name];
         
         return setMethodStr;
-        
     }
-    else
-        if ([weakArray containsObject:model.memorykeyWord]
-            || [weakArray containsObject:model.atomicType]
-            || [typeArray containsObject:model.dataType])
-        {
-            setMethodStr = [NSString stringWithFormat:@"\n- (void)set%@:(%@) %@ {\n    if (_%@ != %@) {\n        _%@ = %@;\n    }\n}",
-                            capitalName,
-                            model.dataType,
-                            model.name,
-                            model.name,
-                            model.name,
-                            model.name,
-                            model.name];
-        }
+    else if ([model.dataType isEqualToString:@"NSString"]) {
+        setMethodStr = [NSString stringWithFormat:@"\n- (void)set%@:(%@ )%@ {\n    _%@ = [%@ copy];\n}\n",
+                        capitalName,
+                        model.dataType,
+                        model.name,
+                        model.name,
+                        model.name];
+        
+        return setMethodStr;
+    }
+    else if ([weakArray containsObject:model.memorykeyWord]
+             || [weakArray containsObject:model.atomicType]
+             || [typeArray containsObject:model.dataType])
+    {
+        setMethodStr = [NSString stringWithFormat:@"\n- (void)set%@:(%@)%@ {\n    _%@ = %@;\n}\n",
+                        capitalName,
+                        model.dataType,
+                        model.name,
+                        model.name,
+                        model.name];
+    }
     
     return setMethodStr;
 }
@@ -309,17 +312,29 @@
 //get lazy
 - (NSString *) productGetLazyMethodWithPropertyModel:(PropertyModel *) model
 {
+    
     NSArray * weakArray = [self weakArray];
     NSArray * typeArray = @[@"id"];
     NSString *  setMethodStr = @"";
     if (![weakArray containsObject:model.memorykeyWord] || ![typeArray containsObject:model.dataType]) {
-        setMethodStr = [NSString stringWithFormat:@"\n- (%@ *)%@ {\n	if (_%@ == nil) {\n        _%@ = [[%@ alloc] init];\n	}\n	return _%@;\n}",
+        setMethodStr = [NSString stringWithFormat:@"\n- (%@ *)%@ {\n	if (!_%@) {\n        _%@ = [[%@ alloc] init];\n	}\n	return _%@;\n}\n",
                         model.dataType,
                         model.name,
                         model.name,
                         model.name,
                         model.dataType,
                         model.name];
+    }
+    
+    if ([model.dataType isEqualToString:@"UIButton"]) {
+        setMethodStr = [NSString stringWithFormat:@"\n- (%@ *)%@ {\n\tif (!_%@) {\n        _%@ = [%@ buttonWithType:UIButtonTypeCustom];\n\t}\n\treturn _%@;\n}\n",
+                        model.dataType,
+                        model.name,
+                        model.name,
+                        model.name,
+                        model.dataType,
+                        model.name];
+        
     }
     return setMethodStr;
 }
